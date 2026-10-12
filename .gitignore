@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# 运行时数据（含登录会话，绝不能提交）
+data/
+*.db
+*.db-wal
+*.db-shm
+session.json
+
+# 本地配置（含访问口令 / 飞书密钥等敏感信息）
+config.yaml
+.env
+.env.*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log

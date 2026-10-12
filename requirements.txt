@@ -1,0 +1,8 @@
+# 仅作为 pip 方式的备用依赖清单（推荐使用 uv：见 pyproject.toml / README）
+# 国内安装建议加镜像：pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.27
+httpx[socks]>=0.27
+SQLAlchemy>=2.0
+PyYAML>=6.0
+python-multipart>=0.0.9

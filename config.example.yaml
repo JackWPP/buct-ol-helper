@@ -1,0 +1,80 @@
+# ============================================================
+# 雨课堂网课助手配置模板
+# 复制为 config.yaml 后按需修改（config.yaml 不要提交到公开仓库）
+# ============================================================
+
+server:
+  host: 0.0.0.0
+  port: 8765
+  # 看板访问口令：公网部署时强烈建议设置（非空时访问看板需要输入口令）
+  access_token: ""
+  # 数据目录（SQLite、会话文件等）
+  data_dir: "data"
+
+account:
+  # 学校雨课堂专业版地址（BUCT）
+  base_url: "https://grabuct.yuketang.cn"
+  # 账号显示名（仅用于看板展示）
+  name: "我的账号"
+  # 以下两项登录后会自动探测，一般不用填；探测失败时可手工指定
+  university_id: null
+  uv_id: null
+
+engine:
+  # ---------- 节奏参数（默认值已按"贴近真实播放器"保守设置，建议先跑通再调整） ----------
+  # 虚拟播放倍速，1.0 = 真实速度。上调会加快完成，但增大触发平台风控的概率（>2.0 风险明显）
+  speed: 1.0
+  # 并行观看的视频数量（同一门课内串行，不同课程之间并行）
+  max_parallel_videos: 2
+  # 心跳节拍：播放中每 N 秒产生一条 heartbeat 事件（真实前端为 5 秒）
+  heartbeat_tick: 5.0
+  # 批量上报间隔：每 N 秒把累积的心跳打包 POST 一次（真实前端约 30 秒）
+  flush_interval: 30.0
+  # 进度核对间隔：每 N 秒调用一次进度接口，核对平台实际记录的进度
+  progress_check_interval: 120.0
+  # 单个视频失败重试次数
+  retry: 3
+  # HTTP 超时（秒）
+  request_timeout: 15.0
+  # 启动服务后是否自动开始刷课
+  auto_start: false
+  # 同步时自动只勾选「网络课程」（其余课程不参与自动刷课）
+  auto_select_network_courses: true
+  # 定时回填平台真实进度（分钟）：保证看板数据不过期
+  auto_refresh_minutes: 10
+  # 进度汇报间隔（分钟，≥10），默认每小时一次
+  report_interval_minutes: 60
+  # 每日运行时段（null = 全天），例如 "07:00-23:30"，深夜暂停更贴近真人
+  active_hours: null
+  # 心跳中的 CDN 标识（bd / ws / cc，一般无需修改）
+  cdn_tag: "bd"
+  # 只演练不真正提交心跳（用于上线前自检，不会产生任何真的学习记录）
+  dry_run: false
+
+notify:
+  enabled: true
+  # ---------- 飞书自定义机器人（推荐）----------
+  # 群设置 → 群机器人 → 添加自定义机器人 → 复制 Webhook 地址
+  feishu:
+    webhook: ""
+    # 若机器人开启了"签名校验"，把密钥填在这里
+    secret: ""
+  # ---------- 邮件（SMTP）----------
+  email:
+    smtp_host: ""            # 如 smtp.qq.com
+    smtp_port: 465
+    use_ssl: true            # 465 用 true；587 一般用 false(STARTTLS)
+    username: ""             # 登录用户名
+    password: ""             # 授权码/密码
+    sender: ""               # 发件人（留空则用 username）
+    to: []                   # 收件人列表，如 ["me@example.com"]
+  # ---------- 通知事件开关 ----------
+  events:
+    login: true              # 登录成功
+    login_expired: true      # 登录过期（需要重新扫码）
+    hourly: true             # 每小时进度汇报
+    course_completed: true   # 某门课刷完
+    all_completed: true      # 全部课程刷完
+    video_completed: false   # 每个视频刷完（默认关，避免刷屏）
+    anomaly: true            # 平台风控提示 / 进度停滞降速
+    errors: true             # 连续失败等异常

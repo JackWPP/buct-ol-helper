@@ -1,0 +1,14 @@
+services:
+  ykt-helper:
+    build: .
+    container_name: ykt-helper
+    restart: unless-stopped
+    ports:
+      # 宿主机端口可通过 .env 里的 YKT_HOST_PORT 覆盖（默认 8765）
+      - "${YKT_HOST_PORT:-8765}:8765"
+    volumes:
+      # 配置文件与数据（SQLite / 会话）持久化到宿主机
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai

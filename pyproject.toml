@@ -1,0 +1,23 @@
+[project]
+name = "ykt-helper"
+version = "0.1.0"
+description = "雨课堂网课助手：个人学习进度托管工具（扫码登录 / 进度看板 / 异常通知）"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110,<1.0",
+    "uvicorn[standard]>=0.27",
+    "httpx[socks]>=0.27",
+    "SQLAlchemy>=2.0",
+    "PyYAML>=6.0",
+    "python-multipart>=0.0.9",
+]
+
+[tool.uv]
+package = false
+
+# 默认使用国内镜像源（可用环境变量 UV_INDEX_URL / UV_DEFAULT_INDEX 覆盖，
+# 或临时用 `uv sync --default-index https://pypi.org/simple` 走官方源）
+[[tool.uv.index]]
+name = "tuna"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
