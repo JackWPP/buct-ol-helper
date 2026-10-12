@@ -6,3 +6,4 @@ httpx[socks]>=0.27
 SQLAlchemy>=2.0
 PyYAML>=6.0
 python-multipart>=0.0.9
+mcp>=1.0  # MCP 服务（AI Agent 集成）

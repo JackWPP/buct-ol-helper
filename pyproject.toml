@@ -10,6 +10,7 @@ dependencies = [
     "SQLAlchemy>=2.0",
     "PyYAML>=6.0",
     "python-multipart>=0.0.9",
+    "mcp>=2.3.0",
 ]
 
 [tool.uv]
