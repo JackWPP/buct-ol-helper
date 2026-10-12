@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# 雨课堂网课助手 CLI 包装脚本：无需安装依赖，直接用 uv 运行项目内的 CLI
+# 用法：./bin/ykt status   （也可以软链到 ~/.local/bin/ykt 后直接用 ykt 命令）
+SELF=$0
+# 解析软链，保证从任意位置（含 ~/.local/bin/ykt 软链）调用都能定位项目根目录
+while [ -L "$SELF" ]; do
+  TARGET=$(readlink "$SELF")
+  case "$TARGET" in
+    /*) SELF=$TARGET ;;
+    *) SELF=$(dirname "$SELF")/$TARGET ;;
+  esac
+done
+DIR=$(cd "$(dirname "$SELF")/.." && pwd)
+exec uv run --directory "$DIR" python -m app.cli "$@"
