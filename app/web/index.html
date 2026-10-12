@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>雨课堂网课助手</title>
+<link rel="stylesheet" href="/static/style.css?v=5">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">雨</span>雨课堂网课助手 <span class="ver">BUCT Edition</span></div>
+  <div class="pills" id="pills"></div>
+  <div class="actions">
+    <button id="btn-login">扫码登录</button>
+    <button id="btn-sync">同步课程</button>
+    <button id="btn-autoselect" title="只勾选「网络课程」，其余课程不参与自动刷课">一键勾选网络课</button>
+    <button id="btn-refresh">刷新进度</button>
+    <button id="btn-report" title="立即发送一次进度汇报">立即汇报</button>
+    <button id="btn-start" class="primary">全部开始</button>
+    <button id="btn-stop">全部暂停</button>
+    <button id="btn-settings">设置</button>
+  </div>
+</header>
+
+<main>
+  <section class="stats" id="stats"></section>
+
+  <section class="live">
+    <div class="section-title">实时动态 <span class="sub">每 1.5 秒刷新，展示心跳上报情况</span></div>
+    <div id="live-panel" class="live-panel">
+      <div class="empty-hint">当前没有正在观看的视频</div>
+    </div>
+  </section>
+
+  <section class="courses">
+    <div class="section-title">我的课程 <span class="sub" id="courses-sub"></span></div>
+    <div class="grid" id="course-grid">
+      <div class="empty-hint">登录后点击「同步课程」拉取课程列表</div>
+    </div>
+  </section>
+
+  <section class="logs">
+    <div class="section-title">运行日志 <span class="sub">最近 120 条</span></div>
+    <div class="log-list" id="log-list"><div class="log-empty">暂无日志</div></div>
+  </section>
+</main>
+
+<!-- 登录弹窗 -->
+<div class="modal-mask" id="modal-login" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close="modal-login">✕</button>
+    <h2>扫码登录</h2>
+    <div class="desc">使用微信扫描二维码（与网页端登录流程一致）；二维码过期会自动刷新。</div>
+    <div class="tabs">
+      <button id="tab-qr" class="active">微信扫码</button>
+      <button id="tab-cookie">Cookie 导入</button>
+    </div>
+
+    <div id="pane-qr">
+      <div class="qr-box">
+        <img id="qr-img" alt="二维码加载中…" src="">
+        <div class="qr-status" id="qr-status">正在获取二维码…</div>
+      </div>
+    </div>
+
+    <div id="pane-cookie" hidden>
+      <div class="desc">在已登录的浏览器中打开雨课堂，F12 → Application → Cookies，复制完整 Cookie 粘贴到下方。</div>
+      <textarea id="cookie-input" placeholder="sessionid=xxx; csrftoken=xxx; ..."></textarea>
+      <div class="modal-actions">
+        <button class="primary" id="btn-import-cookie">导入并验证</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal-mask" id="modal-settings" hidden>
+  <div class="modal wide">
+    <button class="modal-close" data-close="modal-settings">✕</button>
+    <h2>设置</h2>
+    <div class="desc">节奏参数默认已按平台真实播放器行为设置，调整前请阅读提示。保存后即时生效。</div>
+
+    <div class="section-title" style="margin-top:6px">刷课引擎</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>播放倍速（1.0 = 真实速度）</label>
+        <input type="number" id="set-speed" step="0.25" min="1" max="4">
+        <span class="hint">高于 2.0 会显著增加触发平台风控的概率</span>
+      </div>
+      <div class="form-field">
+        <label>并行视频数</label>
+        <input type="number" id="set-parallel" step="1" min="1" max="8">
+        <span class="hint">不同课程之间并行；建议 2~3</span>
+      </div>
+      <div class="form-field">
+        <label>心跳节拍（秒/条）</label>
+        <input type="number" id="set-tick" step="1" min="2" max="60">
+        <span class="hint">真实前端为 5 秒</span>
+      </div>
+      <div class="form-field">
+        <label>批量上报间隔（秒）</label>
+        <input type="number" id="set-flush" step="5" min="10" max="300">
+        <span class="hint">真实前端约 30 秒</span>
+      </div>
+      <div class="form-field">
+        <label>进度核对间隔（秒）</label>
+        <input type="number" id="set-check" step="10" min="30" max="900">
+      </div>
+      <div class="form-field">
+        <label>失败重试次数</label>
+        <input type="number" id="set-retry" step="1" min="1" max="10">
+      </div>
+      <div class="form-field">
+        <label class="checkbox-line"><input type="checkbox" id="set-autostart"> 服务启动后自动开始刷课</label>
+        <label class="checkbox-line"><input type="checkbox" id="set-dryrun"> 演练模式（只模拟、不上报）</label>
+        <label class="checkbox-line"><input type="checkbox" id="set-auto-select"> 同步时自动只勾选「网络课程」</label>
+      </div>
+      <div class="form-field">
+        <label>自动刷新平台进度（分钟）</label>
+        <input type="number" id="set-auto-refresh" step="5" min="2" max="120">
+        <span class="hint">定时回填平台真实进度，看板不会长期停留在旧数据</span>
+      </div>
+      <div class="form-field">
+        <label>进度汇报间隔（分钟）</label>
+        <input type="number" id="set-report-interval" step="10" min="10" max="720">
+        <span class="hint">默认 60 分钟一次（走飞书/邮件）</span>
+      </div>
+    </div>
+
+    <div class="section-title">通知</div>
+    <div class="form-grid">
+      <div class="form-field full">
+        <label class="checkbox-line"><input type="checkbox" id="set-notify-enabled"> 开启通知</label>
+      </div>
+      <div class="form-field full">
+        <label>飞书机器人 Webhook</label>
+        <input type="text" id="set-feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/…">
+      </div>
+      <div class="form-field">
+        <label>飞书签名密钥（可选）</label>
+        <input type="password" id="set-feishu-secret" placeholder="机器人开启签名校验时填写">
+      </div>
+      <div class="form-field">
+        <label>SMTP 服务器</label>
+        <input type="text" id="set-smtp-host" placeholder="smtp.qq.com">
+      </div>
+      <div class="form-field">
+        <label>SMTP 端口</label>
+        <input type="number" id="set-smtp-port" placeholder="465">
+      </div>
+      <div class="form-field">
+        <label>邮箱账号</label>
+        <input type="text" id="set-smtp-user" placeholder="you@example.com">
+      </div>
+      <div class="form-field">
+        <label>邮箱授权码/密码</label>
+        <input type="password" id="set-smtp-pass" placeholder="授权码">
+      </div>
+      <div class="form-field full">
+        <label>收件人（逗号分隔）</label>
+        <input type="text" id="set-mail-to" placeholder="me@example.com, other@example.com">
+      </div>
+      <div class="form-field full">
+        <label>通知事件</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:2px">
+          <label class="checkbox-line"><input type="checkbox" id="ev-login"> 登录成功</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-login-expired"> 登录过期</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-hourly"> 每小时进度汇报</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-course"> 课程完成</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-all"> 全部完成</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-video"> 单个视频完成</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-anomaly"> 风控/降速</label>
+          <label class="checkbox-line"><input type="checkbox" id="ev-errors"> 错误</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btn-notify-test">发送测试通知</button>
+      <button class="primary" id="btn-save-settings">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 课程详情弹窗 -->
+<div class="modal-mask" id="modal-course" hidden>
+  <div class="modal wide">
+    <button class="modal-close" data-close="modal-course">✕</button>
+    <h2 id="course-detail-title">课程详情</h2>
+    <div class="desc" id="course-detail-sub"></div>
+    <div id="course-leaves"><div class="log-empty">加载中…</div></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+<script src="/static/app.js?v=5"></script>
+</body>
+</html>
