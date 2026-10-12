@@ -358,9 +358,14 @@ def ykt_cli(command: str) -> str:
     if args and args[0] in blocked:
         return f"出于安全考虑，MCP 不直接执行 `{args[0]}`（请让用户手动运行）。"
     try:
+        # 冻结运行时（桌面端内置二进制）直接用自身 + 子命令；源码运行时走模块
+        if getattr(sys, "frozen", False):
+            cmd, cwd = [sys.executable, *args], None
+        else:
+            cmd, cwd = [sys.executable, "-m", "app.cli", *args], str(PROJECT_ROOT)
         proc = subprocess.run(
-            [sys.executable, "-m", "app.cli", *args],
-            cwd=str(PROJECT_ROOT),
+            cmd,
+            cwd=cwd,
             capture_output=True,
             text=True,
             timeout=180,

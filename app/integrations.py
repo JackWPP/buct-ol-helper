@@ -4,12 +4,27 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .client_api import CONFIG_PATH, load_config, save_config
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SKILL_SOURCE = PROJECT_ROOT / "skills" / "ykt-helper"
+
+
+def is_frozen() -> bool:
+    """是否运行在 PyInstaller 冻结的独立二进制中（桌面端内置运行时）。"""
+    return bool(getattr(sys, "frozen", False))
+
+
+def runtime_root() -> Path:
+    """资源根目录：源码运行 = 仓库根；冻结运行 = 解包目录（含随包 skills/ 等资源）。"""
+    if is_frozen():
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+    return PROJECT_ROOT
+
+
+SKILL_SOURCE = runtime_root() / "skills" / "ykt-helper"
 
 # 各 agent 的技能目录（WorkBuddy 兼容 OpenClaw 技能生态）
 CLIENT_DIRS = {
@@ -22,7 +37,13 @@ MCP_SERVER_MODULE = "app.mcp_server"
 
 
 def mcp_command() -> list[str]:
-    """通过 uv 运行 MCP 服务（stdio）。"""
+    """MCP 服务（stdio）启动命令。
+
+    冻结运行时（桌面端装好的 ykt 命令）直接用自身二进制 + `mcp` 子命令，
+    用户无需 Python / uv；源码运行时用 uv 拉起模块。
+    """
+    if is_frozen():
+        return [sys.executable, "mcp"]
     return ["uv", "run", "--directory", str(PROJECT_ROOT), "python", "-m", MCP_SERVER_MODULE]
 
 
@@ -74,9 +95,10 @@ def _write_codex_toml(url: str, token: str) -> list[str]:
     backup = path.with_suffix(".toml.bak")
     if path.exists():
         shutil.copy2(path, backup)
-    block = ["", "[mcp_servers.ykt]", 'command = "uv"', "args = ["]
-    block.append(f'  "run", "--directory", "{PROJECT_ROOT}",')
-    block.append(f'  "python", "-m", "{MCP_SERVER_MODULE}",')
+    cmd = mcp_command()
+    block = ["", "[mcp_servers.ykt]", f'command = "{cmd[0]}"', "args = ["]
+    for arg in cmd[1:]:
+        block.append(f'  "{arg}",')
     block.append("]")
     block.append("[mcp_servers.ykt.env]")
     block.append(f'YKT_URL = "{url}"')

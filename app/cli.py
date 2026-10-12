@@ -278,26 +278,36 @@ def cmd_setup(args) -> int:
 
 
 def _link_cli() -> None:
-    """把 bin/ykt 软链到 ~/.local/bin/ykt（若该目录在 PATH 中）。"""
-    src = BIN_DIR / "ykt"
-    if not src.exists():
+    """安装 ~/.local/bin/ykt 命令行入口。
+
+    - 源码运行：软链到仓库内的 bin/ykt（经 uv 运行）
+    - 冻结运行（桌面端内置二进制）：生成指向自身的包装脚本，无需 Python / uv
+    """
+    frozen = bool(getattr(sys, "frozen", False))
+    src = Path(sys.executable) if frozen else (BIN_DIR / "ykt")
+    if not frozen and not src.exists():
         return
-    try:
-        src.chmod(0o755)
-    except Exception:
-        pass
     target = Path.home() / ".local" / "bin" / "ykt"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.is_symlink() or target.exists():
             target.unlink()
-        target.symlink_to(src)
+        if frozen:
+            target.write_text(
+                f'#!/bin/sh\n# 由「雨课堂网课助手」生成；卸载直接删除本文件即可\nexec "{src}" "$@"\n',
+                encoding="utf-8",
+            )
+            target.chmod(0o755)
+        else:
+            src.chmod(0o755)
+            target.symlink_to(src)
         print(f"已安装命令行入口：{target}")
         path_env = os.environ.get("PATH", "")
         if str(target.parent) not in path_env.split(":"):
             print(f"注意：{target.parent} 不在 PATH 中，可把它加入 PATH 后直接用 `ykt` 命令")
     except Exception as e:  # noqa: BLE001
-        print(f"命令行入口未安装（{e}），可直接用：uv run --directory {src.parent.parent} python -m app.cli")
+        hint = "ykt-server <命令>" if frozen else f"uv run --directory {src.parent.parent} python -m app.cli"
+        print(f"命令行入口未安装（{e}），可直接用：{hint}")
 
 
 def cmd_doctor(args) -> int:
@@ -317,6 +327,14 @@ def cmd_doctor(args) -> int:
         checks.append(("服务连通", f"失败：{e}"))
     for name, value in checks:
         print(f"{name:<8}: {value}")
+    return 0
+
+
+def cmd_mcp(args) -> int:
+    """以 stdio 运行 MCP 服务（供 AI Agent 调用）。"""
+    from .mcp_server import main as mcp_main
+
+    mcp_main()
     return 0
 
 
@@ -373,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_serve, needs_client=False)
 
     add("doctor", "环境与连通性自检").set_defaults(func=cmd_doctor, needs_client=False)
+    add("mcp", "以 stdio 运行 MCP 服务（供 AI Agent 调用）").set_defaults(func=cmd_mcp, needs_client=False)
     add("mcp-print", "打印 MCP 配置（手动粘贴用）").set_defaults(func=cmd_mcp_print, needs_client=False)
 
     add("status", "总览").set_defaults(func=cmd_status, needs_client=True)
