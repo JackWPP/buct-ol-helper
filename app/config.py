@@ -114,6 +114,8 @@ def load_config(explicit: str | None = None, force: bool = False) -> dict[str, A
         cfg["server"]["data_dir"] = os.environ["YKT_DATA_DIR"]
     if os.environ.get("YKT_PORT"):
         cfg["server"]["port"] = int(os.environ["YKT_PORT"])
+    if os.environ.get("YKT_HOST"):
+        cfg["server"]["host"] = os.environ["YKT_HOST"]
 
     _config = cfg
     _config_path = path

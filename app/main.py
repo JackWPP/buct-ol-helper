@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,7 +14,15 @@ from . import __version__
 from .api.routes import router as api_router
 from .runtime import Runtime
 
-WEB_DIR = Path(__file__).resolve().parent / "web"
+def _resolve_web_dir() -> Path:
+    """前端静态目录：源码运行取 app/web；PyInstaller 冻结后取解包目录下的 app/web。"""
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+        return base / "app" / "web"
+    return Path(__file__).resolve().parent / "web"
+
+
+WEB_DIR = _resolve_web_dir()
 
 runtime = Runtime()
 
