@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld("ykt", {
   localStop: () => ipcRenderer.invoke("local:stop"),
   engineCall: (pathname, method) => ipcRenderer.invoke("engine:call", { path: pathname, method }),
   version: () => ipcRenderer.invoke("app:version"),
+  cliInstall: () => ipcRenderer.invoke("cli:install"),
   onLocalLog: (cb) => ipcRenderer.on("local:log", (_e, line) => cb(line)),
+  onBootState: (cb) => ipcRenderer.on("boot:state", (_e, state) => cb(state)),
 });

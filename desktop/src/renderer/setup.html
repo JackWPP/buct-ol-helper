@@ -3,8 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
-<title>连接设置 · 雨课堂网课助手</title>
+<title>设置 · 雨课堂网课助手</title>
 <link rel="stylesheet" href="style.css">
+<style>
+  .banner { display: none; margin: 0 0 18px; padding: 12px 14px; border-radius: 10px; font-size: 13px;
+            background: #3a1d22; border: 1px solid #6b2b34; color: #ffb4b4; }
+  .banner.show { display: block; }
+  .feat { list-style: none; padding: 0; margin: 6px 0 18px; }
+  .feat li { color: #8b93a7; font-size: 12.5px; line-height: 2; }
+  .feat li b { color: #cfd5e4; font-weight: 600; }
+  .ok-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px;
+              background: #14351f; color: #66d98a; border: 1px solid #235c37; margin-left: 8px; }
+  .link { color: #7c8598; font-size: 12px; cursor: pointer; text-decoration: underline dotted; }
+  .link:hover { color: #a9b2c7; }
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -12,21 +24,46 @@
     <div class="logo">雨</div>
     <div>
       <h1>雨课堂网课助手</h1>
-      <p class="sub">桌面客户端 · 连接你的刷课服务</p>
+      <p class="sub">桌面客户端 · 开箱即用</p>
     </div>
   </header>
 
+  <div id="banner" class="banner"></div>
+
   <div class="tabs">
-    <button id="tab-remote" class="active">连接已有服务</button>
-    <button id="tab-local">在本机启动服务</button>
+    <button id="tab-embedded" class="active">内置服务（推荐）</button>
+    <button id="tab-remote">连接自建服务</button>
   </div>
 
+  <!-- 内置服务 -->
+  <section id="pane-embedded">
+    <ul class="feat">
+      <li><b>无需安装任何东西</b><span id="badge-bundle" class="ok-badge">运行环境已内置</span></li>
+      <li>Python 运行时、全部依赖、数据库（SQLite）都已打包进 App</li>
+      <li>扫码登录后即可在托盘里挂机，进度、日志、通知都在看板里</li>
+    </ul>
+    <div class="field small">
+      <label>服务端口（被占用时会自动换一个）</label>
+      <input id="port" type="number" value="8765">
+    </div>
+    <div class="field">
+      <label>数据目录（课程进度 / 登录态 / 日志）</label>
+      <input id="data-dir" type="text" readonly>
+      <span class="hint">换电脑或重装前备份这里即可保留全部状态</span>
+    </div>
+    <div class="row">
+      <button id="btn-save-embedded" class="primary">立即开始</button>
+      <button id="btn-open-data" class="ghost">打开数据目录</button>
+    </div>
+    <p id="msg-embedded" class="msg"></p>
+  </section>
+
   <!-- 远程模式 -->
-  <section id="pane-remote">
+  <section id="pane-remote" hidden>
     <div class="field">
       <label>服务地址</label>
       <input id="url" type="text" placeholder="http://127.0.0.1:8765 或 http://你的服务器:端口">
-      <span class="hint">云服务器部署时填公网地址，例如 http://152.136.121.153:25173</span>
+      <span class="hint">在云服务器上用 Docker 部署后填公网地址，例如 http://152.136.121.153:25173</span>
     </div>
     <div class="field">
       <label>看板访问口令（服务未设置口令时留空）</label>
@@ -39,26 +76,20 @@
     <p id="msg-remote" class="msg"></p>
   </section>
 
-  <!-- 本机模式 -->
-  <section id="pane-local" hidden>
+  <!-- 开发模式（隐藏入口） -->
+  <section id="pane-dev" hidden>
     <div class="field">
       <label>项目目录（含 run.py）</label>
       <div class="row">
         <input id="project-dir" type="text" placeholder="/Users/you/buct_OL_HELPER">
         <button id="btn-pick" class="ghost">选择…</button>
       </div>
-      <span class="hint">本机需要已安装 <code>uv</code>，首次启动会安装依赖</span>
-    </div>
-    <div class="field small">
-      <label>端口</label>
-      <input id="port" type="number" value="8765">
+      <span class="hint">需本机已安装 <code>uv</code>；仅开发者使用</span>
     </div>
     <div class="row">
-      <button id="btn-local-start" class="ghost">启动服务</button>
-      <button id="btn-local-stop" class="ghost">停止</button>
-      <button id="btn-save-local" class="primary">保存并进入看板</button>
+      <button id="btn-save-dev" class="primary">用源码启动</button>
     </div>
-    <p id="msg-local" class="msg"></p>
+    <p id="msg-dev" class="msg"></p>
     <pre id="logs" class="logs"></pre>
   </section>
 
@@ -66,6 +97,10 @@
     <span id="ver"></span>
     <span class="sep">·</span>
     <a id="docs-link" href="#">使用说明</a>
+    <span class="sep">·</span>
+    <span class="link" id="dev-toggle">开发模式</span>
+    <span class="sep">·</span>
+    <span class="link" id="cli-install">安装命令行工具</span>
   </footer>
 </div>
 <script src="setup.js"></script>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>正在启动 · 雨课堂网课助手</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #0f1117; color: #e6e8ef; display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .box { width: 460px; text-align: center; }
+  .logo {
+    width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 18px; font-size: 32px;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    background: linear-gradient(135deg, #5b6cff, #8f6dff);
+  }
+  h1 { font-size: 19px; margin: 0 0 8px; font-weight: 600; }
+  p.sub { color: #8b93a7; font-size: 13px; margin: 0 0 22px; }
+  .bar { height: 4px; width: 100%; background: #1b1f2a; border-radius: 99px; overflow: hidden; }
+  .bar i {
+    display: block; height: 100%; width: 40%; border-radius: 99px;
+    background: linear-gradient(90deg, #5b6cff, #8f6dff);
+    animation: slide 1.3s ease-in-out infinite;
+  }
+  @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+  pre {
+    margin: 20px 0 0; text-align: left; max-height: 200px; overflow: auto; font-size: 11px;
+    line-height: 1.6; color: #7c8598; background: #14171f; border: 1px solid #222736;
+    border-radius: 10px; padding: 12px; white-space: pre-wrap;
+  }
+  pre:empty { display: none; }
+  .foot { margin-top: 16px; color: #59607a; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">雨</div>
+    <h1 id="title">正在启动内置服务</h1>
+    <p class="sub" id="text">首次启动需要初始化运行环境，请稍候…</p>
+    <div class="bar"><i></i></div>
+    <pre id="logs"></pre>
+    <div class="foot">服务就绪后会自动打开看板；若长时间无响应，可右键托盘图标 → 重新设置</div>
+  </div>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  window.ykt.onBootState((s) => {
+    if (!s) return;
+    if (s.text) $("text").textContent = s.text;
+    if (s.phase === "error") {
+      $("title").textContent = "启动失败";
+      $("text").textContent = s.text || "请检查设置";
+    }
+  });
+
+  window.ykt.onLocalLog((line) => {
+    const logs = $("logs");
+    logs.textContent += (logs.textContent ? "\n" : "") + line;
+    logs.scrollTop = logs.scrollHeight;
+  });
+</script>
+</body>
+</html>

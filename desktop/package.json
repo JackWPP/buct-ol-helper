@@ -1,7 +1,7 @@
 {
   "name": "ykt-helper-desktop",
   "productName": "雨课堂网课助手",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "雨课堂网课助手桌面客户端：连接自建的刷课服务，随手看进度、随时启停",
   "main": "src/main.js",
   "author": {
@@ -11,7 +11,8 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dist:mac": "electron-builder --mac",
+    "build:server": "bash build-server.sh",
+    "dist:mac": "npm run build:server && electron-builder --mac",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux"
   },
@@ -29,6 +30,12 @@
     "files": [
       "src/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/ykt-server",
+        "to": "server"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",

@@ -6,37 +6,68 @@ function setMsg(el, text, type = "") {
 }
 
 function switchTab(tab) {
-  $("tab-remote").classList.toggle("active", tab === "remote");
-  $("tab-local").classList.toggle("active", tab === "local");
-  $("pane-remote").hidden = tab !== "remote";
-  $("pane-local").hidden = tab !== "local";
+  for (const t of ["embedded", "remote", "dev"]) {
+    const btn = $(`tab-${t}`);
+    if (btn) btn.classList.toggle("active", t === tab);
+    const pane = $(`pane-${t}`);
+    if (pane) pane.hidden = t !== tab;
+  }
 }
 
+$("tab-embedded").addEventListener("click", () => switchTab("embedded"));
 $("tab-remote").addEventListener("click", () => switchTab("remote"));
-$("tab-local").addEventListener("click", () => switchTab("local"));
 
 async function init() {
   const cfg = await window.ykt.getConfig();
-  $("url").value = cfg.url || "";
-  $("token").value = cfg.token || "";
+  const v = await window.ykt.version();
+
+  $("url").value = cfg.url && cfg.mode === "remote" ? cfg.url : "";
+  $("token").value = cfg.mode === "remote" ? cfg.token || "" : "";
   $("project-dir").value = cfg.projectDir || "";
   $("port").value = cfg.localPort || 8765;
-  if (cfg.mode === "local") switchTab("local");
-
-  const v = await window.ykt.version();
+  $("data-dir").value = v.dataDir || "";
   $("ver").textContent = `v${v.app} · Electron ${v.electron}`;
-  $("docs-link").addEventListener("click", (e) => {
-    e.preventDefault();
-    window.ykt.openExternal("https://github.com/JackWPP/buct-ol-helper#readme");
-  });
+
+  if (!v.hasBundledServer) {
+    const badge = $("badge-bundle");
+    badge.textContent = "未内置（开发版）";
+    badge.style.background = "#3a2f16";
+    badge.style.color = "#e2c268";
+    badge.style.borderColor = "#6b551f";
+  }
+
+  if (cfg.mode === "remote") switchTab("remote");
+  else if (cfg.mode === "localdev") switchTab("dev");
+
   const st = await window.ykt.localState();
-  $("logs").textContent = st.logs.join("\n");
+  if (st.logs && st.logs.length) {
+    $("logs").textContent = st.logs.join("\n");
+  }
 }
+
+window.ykt.onBootState((s) => {
+  if (s && s.phase === "error" && s.text) {
+    $("banner").textContent = s.text;
+    $("banner").classList.add("show");
+  }
+});
 
 window.ykt.onLocalLog((line) => {
   const logs = $("logs");
+  if (!logs) return;
   logs.textContent += (logs.textContent ? "\n" : "") + line;
   logs.scrollTop = logs.scrollHeight;
+});
+
+$("btn-save-embedded").addEventListener("click", async () => {
+  const port = Number($("port").value) || 8765;
+  setMsg($("msg-embedded"), "正在启动内置服务…");
+  await window.ykt.saveConfig({ mode: "embedded", localPort: port });
+});
+
+$("btn-open-data").addEventListener("click", async () => {
+  const v = await window.ykt.version();
+  window.ykt.openExternal(`file://${v.dataDir}`);
 });
 
 $("btn-test").addEventListener("click", async () => {
@@ -59,25 +90,26 @@ $("btn-pick").addEventListener("click", async () => {
   if (dir) $("project-dir").value = dir;
 });
 
-$("btn-local-start").addEventListener("click", async () => {
-  setMsg($("msg-local"), "正在启动本机服务…");
-  await window.ykt.saveConfig({ mode: "local", projectDir: $("project-dir").value.trim(), localPort: Number($("port").value) || 8765 });
-  const st = await window.ykt.localStart();
-  setMsg($("msg-local"), st.running ? "服务启动中，等日志出现 Uvicorn running 后再进入看板" : "启动失败，请检查项目目录与 uv", st.running ? "ok" : "bad");
-});
-
-$("btn-local-stop").addEventListener("click", async () => {
-  await window.ykt.localStop();
-  setMsg($("msg-local"), "已停止本机服务");
-});
-
-$("btn-save-local").addEventListener("click", async () => {
+$("btn-save-dev").addEventListener("click", async () => {
   const dir = $("project-dir").value.trim();
   if (!dir) {
-    setMsg($("msg-local"), "请选择项目目录", "bad");
+    setMsg($("msg-dev"), "请选择项目目录", "bad");
     return;
   }
-  await window.ykt.saveConfig({ mode: "local", projectDir: dir, localPort: Number($("port").value) || 8765 });
+  setMsg($("msg-dev"), "正在用 uv 启动…");
+  await window.ykt.saveConfig({ mode: "localdev", projectDir: dir, localPort: Number($("port").value) || 8765 });
+});
+
+$("docs-link").addEventListener("click", (e) => {
+  e.preventDefault();
+  window.ykt.openExternal("https://github.com/JackWPP/buct-ol-helper#readme");
+});
+
+$("dev-toggle").addEventListener("click", () => switchTab("dev"));
+
+$("cli-install").addEventListener("click", async () => {
+  const res = await window.ykt.cliInstall();
+  window.alert(res.ok ? `✅ 已安装，可在终端直接使用 ykt 命令\n\n${res.path}\n\n${res.hint}` : `❌ 安装失败：${res.error}`);
 });
 
 init();
