@@ -26,7 +26,7 @@
 | **命令行 CLI** | `ykt` 一条命令完成查状态、同步、勾选、启停、汇报，支持 `--json` 供程序/Agent 调用 |
 | **MCP 服务** | 内置 MCP（stdio）服务，`ykt setup` 一键配置到 Codex / Claude Code / WorkBuddy，让 AI Agent 直接驱动 |
 | **Agent 技能** | 随附 `SKILL.md` 技能包，教会 Agent 何时用、怎么用、有哪些纪律（不擅自提速、不代做作业） |
-| **桌面客户端** | Electron 应用：托盘常驻、一键连服务、看板秒开，GitHub Release 提供安装包 |
+| **桌面客户端** | Electron 应用，**App 自带 Python 运行时与数据库**：下载即用、托盘常驻、端口自适应、退出无残留 |
 | 诊断探针 | 一条命令导出关键接口原始返回，平台改版时快速定位 |
 
 ---
@@ -328,24 +328,36 @@ uv run python -m app.cli setup --client all --url http://127.0.0.1:8765 --token 
 
 技能里写明了纪律：**不擅自调高倍速/并发**、**作业与考试不代做**（只把平台链接给用户）。
 
-## 桌面客户端（Electron）
+## 桌面客户端（Electron）· 开箱即用
 
-Release 页面提供 macOS 安装包：`ykt-helper-desktop-1.0.0-arm64.dmg` / `-mac.zip`（Apple Silicon）。
+Release 页面提供 macOS 安装包：`ykt-helper-desktop-1.1.0-arm64.dmg` / `-mac.zip`（Apple Silicon）。
 
-- **托盘常驻**：菜单栏小图标，随时查看进度、开始/暂停刷课、立即汇报、打开看板；
-- **一键连服务**：首次打开填「服务地址 + 访问口令」→ 测试连接 → 保存即进入看板；
-- **本机托管**（可选）：选择项目目录后由桌面端拉起本机服务（需本机装有 `uv`）。
+**App 自带完整运行环境**：Python 运行时、全部依赖、SQLite 数据库、前端看板都已打包进安装包，
+用户**不需要安装 Python / uv / 数据库**，双击打开即用。首次启动会自动拉起内置服务并进入看板。
+
+| 特性 | 说明 |
+| --- | --- |
+| 零依赖 | 内置 50MB 独立服务二进制（PyInstaller 打包 Python 3.12 + FastAPI），无需任何环境 |
+| 数据落盘 | 进度 / 登录态 / 日志存于 `~/Library/Application Support/雨课堂网课助手/data/`（SQLite），备份该目录即可迁移 |
+| 端口自适应 | 优先用 8765；**被占用时由系统自动分配空闲端口**，服务端把真实端口回报给 App，不存在冲突或连错服务 |
+| 托盘常驻 | 菜单栏小图标：查看进度、开始/暂停刷课、立即汇报、打开看板、打开数据目录 |
+| 退出干净 | 关闭 App 会带走内置服务（管道 EOF + 父进程守护双保险），不留孤儿进程 |
+| 可选云端 | 也支持连接自建服务（云服务器 Docker 部署）：填地址 + 访问口令即可 |
+| 命令行工具 | 托盘菜单「安装命令行工具」会生成 `~/.local/bin/ykt`，指向内置二进制，**无需装 Python 也能用 CLI / MCP** |
 
 > macOS 未签名应用首次打开若提示"无法验证开发者"：右键 → 打开，或执行
 > `xattr -dr com.apple.quarantine /Applications/雨课堂网课助手.app`
 
-自行构建：
+自行构建（需 Node 18+ 与 uv，产物在 `desktop/release/`）：
 
 ```bash
 cd desktop
-npm install          # 国内网络建议：ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
-npm run dist:mac     # 产物在 desktop/release/
+npm install                    # 国内网络建议加：ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
+npm run build:server           # 先把服务端打成独立二进制 → desktop/resources/ykt-server/
+npm run dist:mac               # 再打包 App（dist:mac 已包含上一步）
 ```
+
+> 跨平台说明：PyInstaller 只能产出**当前系统**的二进制，Windows/Linux 安装包需在对应系统上构建。
 
 ## 平台接口要点（维护者参考）
 
