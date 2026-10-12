@@ -18,6 +18,11 @@ config.yaml
 .env
 .env.*
 
+# Electron 桌面端
+desktop/node_modules/
+desktop/release/
+desktop/.icon-icns/
+
 # 系统文件
 .DS_Store
 Thumbs.db

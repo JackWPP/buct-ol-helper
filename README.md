@@ -23,6 +23,10 @@
 | 自动回填进度 | 默认每 10 分钟从平台回填一次真实进度（`last_point`/`watch_length`），不会长期停留在旧数据 |
 | 通知提醒 | 登录成功 / 登录过期 / 每小时进度 / 课程刷完 / 全部完成 / 风控降速 / 失败，支持飞书机器人与 SMTP 邮件 |
 | 云端托管 | Docker + docker-compose 一键部署，数据卷持久化，看板可加访问口令 |
+| **命令行 CLI** | `ykt` 一条命令完成查状态、同步、勾选、启停、汇报，支持 `--json` 供程序/Agent 调用 |
+| **MCP 服务** | 内置 MCP（stdio）服务，`ykt setup` 一键配置到 Codex / Claude Code / WorkBuddy，让 AI Agent 直接驱动 |
+| **Agent 技能** | 随附 `SKILL.md` 技能包，教会 Agent 何时用、怎么用、有哪些纪律（不擅自提速、不代做作业） |
+| **桌面客户端** | Electron 应用：托盘常驻、一键连服务、看板秒开，GitHub Release 提供安装包 |
 | 诊断探针 | 一条命令导出关键接口原始返回，平台改版时快速定位 |
 
 ---
@@ -268,6 +272,80 @@ buct_OL_HELPER/
 ```
 
 ---
+
+## 命令行与 AI Agent 集成（CLI / MCP / 技能）
+
+除了看板，这套工具还提供 **CLI**、**MCP 服务** 与 **Agent 技能**，可以让 Codex / Claude Code / WorkBuddy 等 AI Agent 直接驱动它干活。
+
+### 1. 一键配置到 AI Agent
+
+```bash
+uv run python -m app.cli setup --client all --url http://127.0.0.1:8765 --token <访问口令>
+# 也可只装某几个：--client codex claude workbuddy
+```
+
+它会做四件事：
+
+1. 用官方命令 `codex mcp add` / `claude mcp add` 注册名为 **ykt** 的 MCP 服务（stdio）；
+2. 把技能 **ykt-helper** 软链到 `~/.codex/skills`、`~/.claude/skills`、`~/.workbuddy/skills`（WorkBuddy 兼容 OpenClaw 技能生态）；
+3. 安装命令行入口 `~/.local/bin/ykt`；
+4. 把服务地址与口令记到 `~/.ykt-helper/config.json`（权限 600）。
+
+验证：`codex mcp list` 应看到 `ykt`，`claude mcp list` 显示 `✔ Connected`，`ykt doctor` 显示服务连通。
+
+### 2. 命令行用法（人和 Agent 通用）
+
+| 命令 | 说明 |
+| --- | --- |
+| `ykt status` | 登录 / 引擎 / 进度概览 |
+| `ykt live` | 当前正在观看的视频（位置、进度、心跳批次） |
+| `ykt courses [--network-only]` | 课程列表 |
+| `ykt leaves <课程id>` | 章节明细（含"需手动完成"的作业/考试） |
+| `ykt sync` / `enable-network` | 同步课程 / 只勾选网络课程 |
+| `ykt start` / `stop` | 全部开始 / 暂停 |
+| `ykt course <id> start\|pause\|enable\|disable\|refresh` | 单门课操作 |
+| `ykt leaf <id> retry\|skip\|reset` | 单个章节操作 |
+| `ykt report` | 立即发送进度汇报（飞书/邮件） |
+| `ykt logs -n 50` | 最近日志 |
+| `ykt settings --set engine.speed=1.5` | 查看 / 修改参数 |
+| `ykt login [--cookie "..."]` | 生成扫码二维码图片 / 用 Cookie 登录 |
+| `ykt doctor` / `probe` / `auth-check` | 自检 / 接口诊断 / 校验登录态 |
+| `ykt serve` | 在本机启动看板服务 |
+
+所有命令都支持 `--json`（放在子命令前或后都可以），方便程序与 Agent 解析。服务地址可用 `--url/--token`、环境变量 `YKT_URL/YKT_TOKEN` 或 `~/.ykt-helper/config.json` 指定。
+
+### 3. MCP 工具
+
+`ykt_` 前缀，共 19 个：`ykt_status`、`ykt_live`、`ykt_list_courses`、`ykt_list_leaves`、`ykt_get_logs`、`ykt_sync_courses`、`ykt_enable_network_courses`、`ykt_start`、`ykt_stop`、`ykt_course_action`、`ykt_leaf_action`、`ykt_progress_report`、`ykt_refresh_progress`、`ykt_get_settings`、`ykt_update_settings`、`ykt_login_status`、`ykt_login_qr`、`ykt_login_with_cookie`，以及兜底的 `ykt_cli`。
+
+与 Agent 对话示例：
+
+> **你**：帮我看下网课刷到哪了，还剩多久？
+> **Agent**：*调用 `ykt_status`* → 已完成 4/390 个视频，已看 1.2 小时，预计还需 23.5 小时，当前正在看《科研伦理》视频 2。
+>
+> **你**：把剩下的网络课都挂上。
+> **Agent**：*`ykt_enable_network_courses` → `ykt_start`* → 已勾选 7 门网络课程并开始，2 路并行。
+
+技能里写明了纪律：**不擅自调高倍速/并发**、**作业与考试不代做**（只把平台链接给用户）。
+
+## 桌面客户端（Electron）
+
+Release 页面提供 macOS 安装包：`ykt-helper-desktop-1.0.0-arm64.dmg` / `-mac.zip`（Apple Silicon）。
+
+- **托盘常驻**：菜单栏小图标，随时查看进度、开始/暂停刷课、立即汇报、打开看板；
+- **一键连服务**：首次打开填「服务地址 + 访问口令」→ 测试连接 → 保存即进入看板；
+- **本机托管**（可选）：选择项目目录后由桌面端拉起本机服务（需本机装有 `uv`）。
+
+> macOS 未签名应用首次打开若提示"无法验证开发者"：右键 → 打开，或执行
+> `xattr -dr com.apple.quarantine /Applications/雨课堂网课助手.app`
+
+自行构建：
+
+```bash
+cd desktop
+npm install          # 国内网络建议：ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
+npm run dist:mac     # 产物在 desktop/release/
+```
 
 ## 平台接口要点（维护者参考）
 
