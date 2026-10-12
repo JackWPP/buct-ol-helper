@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>连接设置 · 雨课堂网课助手</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">雨</div>
+    <div>
+      <h1>雨课堂网课助手</h1>
+      <p class="sub">桌面客户端 · 连接你的刷课服务</p>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button id="tab-remote" class="active">连接已有服务</button>
+    <button id="tab-local">在本机启动服务</button>
+  </div>
+
+  <!-- 远程模式 -->
+  <section id="pane-remote">
+    <div class="field">
+      <label>服务地址</label>
+      <input id="url" type="text" placeholder="http://127.0.0.1:8765 或 http://你的服务器:端口">
+      <span class="hint">云服务器部署时填公网地址，例如 http://152.136.121.153:25173</span>
+    </div>
+    <div class="field">
+      <label>看板访问口令（服务未设置口令时留空）</label>
+      <input id="token" type="password" placeholder="access_token">
+    </div>
+    <div class="row">
+      <button id="btn-test" class="ghost">测试连接</button>
+      <button id="btn-save-remote" class="primary">保存并进入看板</button>
+    </div>
+    <p id="msg-remote" class="msg"></p>
+  </section>
+
+  <!-- 本机模式 -->
+  <section id="pane-local" hidden>
+    <div class="field">
+      <label>项目目录（含 run.py）</label>
+      <div class="row">
+        <input id="project-dir" type="text" placeholder="/Users/you/buct_OL_HELPER">
+        <button id="btn-pick" class="ghost">选择…</button>
+      </div>
+      <span class="hint">本机需要已安装 <code>uv</code>，首次启动会安装依赖</span>
+    </div>
+    <div class="field small">
+      <label>端口</label>
+      <input id="port" type="number" value="8765">
+    </div>
+    <div class="row">
+      <button id="btn-local-start" class="ghost">启动服务</button>
+      <button id="btn-local-stop" class="ghost">停止</button>
+      <button id="btn-save-local" class="primary">保存并进入看板</button>
+    </div>
+    <p id="msg-local" class="msg"></p>
+    <pre id="logs" class="logs"></pre>
+  </section>
+
+  <footer>
+    <span id="ver"></span>
+    <span class="sep">·</span>
+    <a id="docs-link" href="#">使用说明</a>
+  </footer>
+</div>
+<script src="setup.js"></script>
+</body>
+</html>
