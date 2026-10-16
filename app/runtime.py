@@ -13,7 +13,7 @@ from .config import data_dir, get_config
 from .db import db_session, get_or_create_account, init_db, log_event
 from .engine.manager import WatchManager
 from .jobs import refresh_progress, sync_courses
-from .models import Account, Course
+from .models import Account, Course, Leaf
 from .notify import Notifier
 from .settings_store import settings_store
 from .yuketang.auth import AuthManager
@@ -336,8 +336,35 @@ class Runtime:
         )
         # 如果之前因过期而中断，自动恢复
         if prev_running:
+            self._recover_abandoned_leaves()
             await self.manager.start()
         return self.user_public()
+
+    def _recover_abandoned_leaves(self) -> int:
+        """重新登录后，恢复近期因会话失效被误放弃（连续 anomaly）的视频。
+
+        登录过期期间平台心跳会返回 anomaly，导致批量视频被标为 failed 永久放弃、
+        引擎空转。这里把它们复位为 pending 随引擎自动续刷；确有问题的章节会
+        再次失败，只损失一轮重试，影响有限。
+        """
+        cutoff = datetime.now() - timedelta(hours=24)
+        with db_session() as s:
+            rows = s.scalars(
+                select(Leaf).where(
+                    Leaf.status == "failed",
+                    Leaf.error_msg.is_not(None),
+                    Leaf.error_msg.like("%平台连续返回异常提示%"),
+                    Leaf.last_progress_at.is_not(None),
+                    Leaf.last_progress_at >= cutoff,
+                )
+            ).all()
+            for leaf in rows:
+                leaf.status = "pending"
+                leaf.error_msg = None
+            recovered = len(rows)
+        if recovered:
+            log_event("info", "auth", f"重新登录后已恢复 {recovered} 个此前被放弃的视频，将随引擎续刷")
+        return recovered
 
     def user_public(self) -> dict:
         sess = self.client.session

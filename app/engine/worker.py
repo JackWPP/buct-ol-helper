@@ -286,6 +286,7 @@ class VideoWorker:
         last_rate: float | None = None
         last_rate_pos: float | None = None
         stall_strikes = 0
+        flush_fails = 0
         anomaly_notified_level = 0
         anomaly_count = 0
         successful = False
@@ -347,11 +348,18 @@ class VideoWorker:
 
             # 批量上报
             if (time.monotonic() - last_flush >= flush_interval) or len(events) >= C.MAX_EVENTS_PER_FLUSH:
-                batch = events
-                resp = await self._flush(batch, leaf, sku_id, course, user_id, dry_run)
-                events = []
+                batch = events[: C.MAX_EVENTS_PER_FLUSH]
+                resp, flush_ok = await self._flush(batch, leaf, sku_id, course, user_id, dry_run)
                 last_flush = time.monotonic()
                 self.flush_count += 1
+                if flush_ok:
+                    events = events[len(batch):]
+                    flush_fails = 0
+                else:
+                    # 上报失败：这批事件留在队列重发，避免观看时长丢失；连续失败 3 次后放弃最旧一批
+                    flush_fails += 1
+                    if flush_fails >= 3:
+                        events = events[len(batch):]
                 self.m.set_live(
                     self.leaf_db_id,
                     {
@@ -361,9 +369,15 @@ class VideoWorker:
                         "last_response": (json.dumps(resp, ensure_ascii=False)[:200] if resp else "（已发送）"),
                     },
                 )
+                if not flush_ok:
+                    continue
                 action, wait_s = self._inspect_heartbeat_response(resp)
                 if action == "anomaly":
                     anomaly_count += 1
+                    # 登录过期时平台心跳也会返回 anomaly，误判会导致整门课被批量永久放弃；
+                    # 首次 anomaly 时先校验会话，若已失效走正常的暂停→重登自动恢复链路
+                    if anomaly_count == 1 and await self._session_broken():
+                        raise SessionExpired("心跳异常后会话校验失败，判定为登录过期")
                     log_event(
                         "warning",
                         "watch",
@@ -459,21 +473,22 @@ class VideoWorker:
         course: dict,
         user_id: str,
         dry_run: bool,
-    ) -> dict | None:
+    ) -> tuple[dict | None, bool]:
+        """返回 (响应, 是否成功)。失败时调用方可把这批事件放回队列重发。"""
         if not events:
-            return None
+            return None, True
         if dry_run:
             log_event("info", "watch", f"[dry-run] 将上报 {len(events)} 条心跳（{leaf['title'][:40]}）")
-            return None
+            return None, True
         batch = events[: C.MAX_EVENTS_PER_FLUSH]
         try:
             await self.m.throttle("heartbeat", 0.6)
-            return await self.m.client.post_heartbeat(batch, sku_id, course["classroom_id"], leaf["leaf_id"])
+            return await self.m.client.post_heartbeat(batch, sku_id, course["classroom_id"], leaf["leaf_id"]), True
         except SessionExpired:
             raise
         except ApiError as e:
             log_event("warning", "watch", f"心跳上报失败（将重试）：{e}")
-            return None
+            return None, False
 
     @staticmethod
     def _inspect_heartbeat_response(resp: dict | None) -> tuple[str | None, float | None]:
@@ -495,6 +510,16 @@ class VideoWorker:
             except ValueError:
                 return "limit", 30.0
         return None, None
+
+    async def _session_broken(self) -> bool:
+        """校验会话是否已失效（用于区分「登录过期」和「真风控」）。"""
+        try:
+            basic = await self.m.client.get_basic_info()
+        except SessionExpired:
+            return True
+        except ApiError:
+            return False  # 网络问题，仍按风控处理
+        return not (isinstance(basic, dict) and basic.get("code") == 0)
 
     async def _safe_progress(self, platform_course_id: str, user_id: str, course: dict, leaf: dict) -> dict | None:
         try:

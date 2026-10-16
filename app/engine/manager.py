@@ -289,6 +289,12 @@ class WatchManager:
                                 dedup_key=f"leaf_fail:{leaf['leaf_id']}",
                             )
                     else:
+                        # 复位残留的 watching 状态：FAILED 出口只写 error_msg 不改状态，
+                        # 若不复位，_next_pending_leaf 永远取不到它，重试从未真正生效
+                        with db_session() as s:
+                            row = s.get(Leaf, leaf["id"])
+                            if row is not None and row.status == "watching":
+                                row.status = "pending"
                         await asyncio.sleep(5)
                     continue
             self._finalize_course(course_id)
